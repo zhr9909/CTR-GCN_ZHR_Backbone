@@ -144,6 +144,7 @@ class MultiScale_TemporalConv(nn.Module):
 
         out = torch.cat(branch_outs, dim=1)
         out += res
+        # print('out的形状 ',out.shape)
         return out
 
 
@@ -170,10 +171,22 @@ class CTRGC(nn.Module):
                 bn_init(m, 1)
 
     def forward(self, x, A=None, alpha=1):
+        if self.in_channels == 3:
+            print('CTRGC最初的x ',x.shape) #torch.Size([128, 3, 64, 25])
         x1, x2, x3 = self.conv1(x).mean(-2), self.conv2(x).mean(-2), self.conv3(x)
+        if self.in_channels == 3:
+            print('CTRGC最初的x1 ',x1.shape) #torch.Size([128, 8, 25])
+            print('CTRGC最初的x2 ',x2.shape) #torch.Size([128, 8, 25])
+            print('CTRGC最初的x3 ',x3.shape) #torch.Size([128, 64, 64, 25])
         x1 = self.tanh(x1.unsqueeze(-1) - x2.unsqueeze(-2))
+        if self.in_channels == 3:
+            print('CTRGC的x1 ',x1.shape)#torch.Size([128, 8, 25, 25])
         x1 = self.conv4(x1) * alpha + (A.unsqueeze(0).unsqueeze(0) if A is not None else 0)  # N,C,V,V
+        if self.in_channels == 3:
+            print('CTRGC的x1 ',x1.shape)#torch.Size([128, 64, 25, 25])
         x1 = torch.einsum('ncuv,nctv->nctu', x1, x3)
+        if self.in_channels == 3:
+            print('CTRGC的x1 ',x1.shape)#torch.Size([128, 64, 64, 25])
         return x1
 
 class unit_tcn(nn.Module):
@@ -245,7 +258,7 @@ class unit_gcn(nn.Module):
         y += self.down(x)
         y = self.relu(y)
 
-
+        # print('y的形状 ',y.shape)
         return y
 
 
@@ -282,7 +295,7 @@ class Model(nn.Module):
             self.graph = Graph(**graph_args)
 
         A = self.graph.A # 3,25,25
-
+        
         self.num_class = num_class
         self.num_point = num_point
         self.data_bn = nn.BatchNorm1d(num_person * in_channels * num_point)
@@ -308,14 +321,17 @@ class Model(nn.Module):
             self.drop_out = lambda x: x
 
     def forward(self, x):
+        print('shape1',x.shape)
         if len(x.shape) == 3:
             N, T, VC = x.shape
             x = x.view(N, T, self.num_point, -1).permute(0, 3, 1, 2).contiguous().unsqueeze(-1)
         N, C, T, V, M = x.size()
         print("小z先生")
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
+        print('shape2',x.shape)
         x = self.data_bn(x)
         x = x.view(N, M, V, C, T).permute(0, 1, 3, 4, 2).contiguous().view(N * M, C, T, V)
+        print('shape3',x.shape)
         x = self.l1(x)
         x = self.l2(x)
         x = self.l3(x)
@@ -327,10 +343,14 @@ class Model(nn.Module):
         x = self.l9(x)
         x = self.l10(x)
 
+        print('shape4',x.shape)
         # N*M,C,T,V
         c_new = x.size(1)
         x = x.view(N, M, c_new, -1)
+        print('shape5',x.shape)
         x = x.mean(3).mean(1)
+        print('shape6',x.shape)
         x = self.drop_out(x)
-
+        print('shape7',x.shape)
+        print('self.fc(x)',self.fc(x).shape)
         return self.fc(x)
