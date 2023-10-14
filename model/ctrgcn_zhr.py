@@ -279,7 +279,7 @@ class TCN_GCN_unit(nn.Module):
 
     def forward(self, x):
         y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
-        print('y的形状 ',y.shape)
+        # print('y的形状 ',y.shape)
         return y
 
 
@@ -320,8 +320,10 @@ class Model(nn.Module):
         else:
             self.drop_out = lambda x: x
 
-    def forward(self, x):
+    def forward(self, x, label, index):
         print('shape1',x.shape)
+        print('label',label.shape)
+        print('index',index.shape)
         if len(x.shape) == 3:
             N, T, VC = x.shape
             x = x.view(N, T, self.num_point, -1).permute(0, 3, 1, 2).contiguous().unsqueeze(-1)
@@ -348,14 +350,129 @@ class Model(nn.Module):
         c_new = x.size(1)
         Z = x
         x = x.view(N, M, c_new, -1)
-        Z = Z.view(64, 2, 256, 64, 25).permute(0,3,1,4,2)
-        print('Z的shape ',Z.shape) #torch.Size([64, 64, 2, 25, 256])
-        Z = Z.mean(2)
+        
+        # if type==1:
+        #     z_size = x.size(0)
+        #     Z = Z.view(z_size, 2, 256, 64, 25).permute(0,3,1,4,2)
+        #     print('Z的shape ',Z.shape) #torch.Size([64, 64, 2, 25, 256])
+        #     for i in range(z_size):
+        #         ZZZ = Z[i]
+        #         ZZZ_label = label[i]
+        #         ZZZ_index = index[i]
+        #         result_tensor_list = {}
+        #         for j in range(64):
+        #             result_tensor_list[j] = ZZZ[j]
+        #         print(str(ZZZ_index))
+        #         torch.save(result_tensor_list, 'work_dir4/result_tensor_list/result_tensor_list_'+str(ZZZ_index)+'.pth')
+        
 
+
+
+        '''
+        Z = Z.mean(2) #torch.Size([64, 64, 25, 256])
+        ZZZ0 = Z[0]
+        ZZZ1 = Z[1]
+        ZZZ0 = ZZZ0.view(64,-1)
+        ZZZ1 = ZZZ1.view(64,-1)
+        for i in range(0,ZZZ0.size(0)):
+            norm0 = torch.norm(ZZZ0[20])
+            norm1 = torch.norm(ZZZ1[i])
+            print('内积比较',i,': ',torch.dot(ZZZ0[20],ZZZ1[1])/(norm0*norm1))
+        '''
         print('shape5',x.shape) #torch.Size([64, 2, 256, 400])
         x = x.mean(3).mean(1)
         print('shape6',x.shape) #torch.Size([64, 256])
         x = self.drop_out(x)
         print('shape7',x.shape) #torch.Size([64, 256])
         print('self.fc(x)',self.fc(x).shape)
-        return x,self.fc(x)
+        z_size = x.size(0)
+        Z = Z.view(z_size, 2, 256, 64, 25).permute(0,3,1,4,2)
+        Z = Z[0]
+        return Z, self.fc(x) # Z.shape = ([1, 64, 2, 25, 256])
+    
+
+class Temporal_CNN_Model(nn.Module):
+    def __init__(self):
+        super(Temporal_CNN_Model, self).__init__()
+        # 第一层卷积层
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # 第二层卷积层
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # 第三层卷积层
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # 第四层卷积层
+        self.conv4 = nn.Conv2d(128, 1, kernel_size=3, padding=1)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # 全连接层
+        self.fc1 = nn.Linear(256, 512)
+        self.relu5 = nn.ReLU()
+        self.fc2 = nn.Linear(512, 1)  # 输出单元数设置为1
+        
+        # Sigmoid激活函数
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, x):
+        # 前向传播
+        print('第一层')
+        print(x.shape)
+        x = self.conv1(x)
+        print(x.shape)
+        x = self.relu1(x)
+        print(x.shape)
+        # x = self.pool1(x)
+        print(x.shape)
+        
+        print('第二层')
+        x = self.conv2(x)
+        print(x.shape)
+        x = self.relu2(x)
+        print(x.shape)
+        # x = self.pool2(x)
+        print(x.shape)
+        
+        print('第三层')
+        x = self.conv3(x)
+        print(x.shape)
+        x = self.relu3(x)
+        print(x.shape)
+        # x = self.pool3(x)
+        print(x.shape)
+        
+        print('第四层')
+        x = self.conv4(x)
+        print(x.shape)
+        x = self.relu4(x)
+        print(x.shape)
+        # x = self.pool4(x)
+        print(x.shape)
+        
+        # print('奇怪层')
+        # x = x.view(x.size(0), -1)
+        # print(x.shape)
+        
+        # print('全连接层')
+        # x = self.fc1(x)
+        # print(x.shape)
+        # x = self.relu5(x)
+        # print(x.shape)
+        # x = self.fc2(x)
+        # print(x.shape)
+        
+        # 使用Sigmoid激活函数，将输出值映射到0到1之间
+
+        print(x)
+        x = self.sigmoid(x)
+        print(x)
+        
+        return x
