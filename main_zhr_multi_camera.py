@@ -26,6 +26,7 @@ from tensorboardX import SummaryWriter
 from tqdm import tqdm
 import torch.nn.init as init
 from model.ctrgcn_zhr import Temporal_CNN_Model
+from model.loss import CustomMSELoss
 
 from torchlight import DictAction
 
@@ -274,13 +275,20 @@ class Processor():
         torch.cuda.manual_seed(seed)
         self.Model_zhr_temp = Temporal_CNN_Model()
         print('这一步没问题1')
-        tensor = torch.randn(1, 1, 5, 3)
-        tensor.fill_(100)
+        simility_array_7_7 = np.load('data/ntu/simility_array_7_7.npy').reshape(16,16)
+        tensor = torch.tensor(
+       [[[[0.8, 0.7, 0.6, 0.5, 0.9],
+          [0.7, 0.8, 0.7, 0.6, 0.9],
+          [0.6, 0.7, 0.8, 0.7, 0.9],
+          [0.5, 0.6, 0.7, 0.8, 0.9],
+          [0.4, 0.5, 0.6, 0.7, 0.9]]]])
         print(tensor)
-        weights = torch.load('work_dir_train/runs-zhr_first.pt')
+        weights = torch.load('work_dir_train/runs-zhr_try_to_train_second_10.pt')
         self.Model_zhr_temp.load_state_dict(weights)
         print('这一步没问题2')
         self.Model_zhr_temp(tensor)
+        numpy_array = self.Model_zhr_temp(torch.from_numpy(simility_array_7_7).unsqueeze(0).unsqueeze(1).to(torch.float32)).detach().numpy()
+        np.save('data/ntu/array_7_7_after_cnn.npy', numpy_array)
         print('这一步没问题3')
         state_dict = self.Model_zhr_temp.state_dict()
         weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
@@ -295,6 +303,7 @@ class Processor():
         self.model = Model(**self.arg.model_args)
         print(self.model)
         self.loss = nn.CrossEntropyLoss().cuda(output_device)
+        self.loss_temporary = CustomMSELoss().cuda(output_device)
 
         if self.arg.weights:
             self.global_step = int(arg.weights[:-3].split('-')[-1])
@@ -342,6 +351,13 @@ class Processor():
                 weight_decay=self.arg.weight_decay)
         else:
             raise ValueError()
+        
+        self.optimizer_zhr = optim.SGD(
+                self.Model_zhr_temp.parameters(),
+                lr=self.arg.base_lr,
+                momentum=0.9,
+                nesterov=self.arg.nesterov,
+                weight_decay=self.arg.weight_decay)
 
         self.print_log('using warm up, epoch: {}'.format(self.arg.warm_up_epoch))
 
@@ -391,6 +407,7 @@ class Processor():
 
     def train(self, epoch, save_model=False):
         self.model.train()
+        self.Model_zhr_temp.train()
         self.print_log('Training epoch: {}'.format(epoch + 1))
         loader = self.data_loader['train']
         self.adjust_learning_rate(epoch)
@@ -415,26 +432,67 @@ class Processor():
             x_tensor_1,output_1 = self.model(data_1, label_1, index)
             x_tensor_2,output_2 = self.model(data_2, label_2, index)
 
+            if batch_idx%2 == 0:
+                angle_y = np.pi / 6  # 绕Y轴旋转15度
+                # 2. 创建旋转矩阵
+                rotation_matrix_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)],
+                               [0, 1, 0],
+                               [-np.sin(angle_y), 0, np.cos(angle_y)]])
+                print('gugugu')
+                print(type(data_1))
+                print(data_1.shape)
+                print('gugugu')
+                data_1_trans = data_1[0]
+                data_1_trans = np.transpose(data_1_trans.cpu().numpy(), (3, 1, 2, 0))
+                for i in range(data_1_trans.shape[0]):
+                    for j in range(data_1_trans.shape[1]):
+                        data_1_trans[i][j] = np.dot(rotation_matrix_y, data_1_trans[i][j].T).T
+                data_1_trans = data_1_trans.transpose(3, 1, 2, 0)
+                x_tensor_1_trans,output_1_trans = self.model(torch.from_numpy(data_1_trans).unsqueeze(0).float().cuda(self.output_device), label_1, index)
+                similarity_numpy = np.array([]) 
+                x_tensor_1_origin = x_tensor_1.mean(1).view(64,-1)
+                x_tensor_1_trans = x_tensor_1_trans.mean(1).view(64,-1)
+                for i in range(x_tensor_1_origin.size(0)):
+                    norm_1 = torch.norm(x_tensor_1_origin[i])
+                    for j in range(x_tensor_1_trans.size(0)):
+                        norm_2 = torch.norm(x_tensor_1_trans[j])
+                        similarity_score = torch.dot(x_tensor_1_origin[i], x_tensor_1_trans[j]) / (norm_1*norm_2)
+                        similarity_numpy = np.append(similarity_numpy, similarity_score.item())
+                np.save('data/ntu/旋转的自相似矩阵_{}.npy'.format(batch_idx), similarity_numpy)
+
             similarity_numpy = np.array([]) 
+            label_zhr = np.array([]) 
             x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
             x_tensor_2 = x_tensor_2.mean(1).view(64,-1)
             for i in range(x_tensor_1.size(0)):
                 norm_1 = torch.norm(x_tensor_1[i])
                 for j in range(x_tensor_2.size(0)):
+                    label_zhr = np.append(label_zhr, 1.0 - abs(i - j)/64)
                     norm_2 = torch.norm(x_tensor_2[j])
                     similarity_score = torch.dot(x_tensor_1[i], x_tensor_2[j]) / (norm_1*norm_2)
                     similarity_numpy = np.append(similarity_numpy, similarity_score.item())
-            similarity_numpy = similarity_numpy.reshape(64, 64)
-            print(similarity_numpy)
-            print('label1',label_1)
-            print('label2',label_2)
+            # np.save('data/ntu/simility_numpy/array_{}_{}_after_cnn.npy'.format(index,index), similarity_numpy)
+            similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
 
-            print('train里的tensor形状 ',x_tensor_1.shape)
+
             loss = self.loss(output_1, label_1)
             # backward
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            # self.optimizer.zero_grad()
+            # loss.backward()
+            # self.optimizer.step()
+
+            # backward 用来尝试更新时间卷积层-start
+            print(torch.from_numpy(similarity_numpy_matrix).unsqueeze(0).unsqueeze(1))
+            out_put_zhr = self.Model_zhr_temp(torch.from_numpy(similarity_numpy_matrix).unsqueeze(0).unsqueeze(1).to(torch.float32))
+            label_zhr = torch.from_numpy(label_zhr).unsqueeze(0).unsqueeze(1).to(torch.float32)
+            out_put_zhr = out_put_zhr.flatten()
+            label_zhr = label_zhr.flatten()
+            print('label_zhr:', label_zhr)
+            loss_zhr = self.loss_temporary(out_put_zhr, label_zhr)
+            self.optimizer_zhr.zero_grad()
+            loss_zhr.backward()
+            self.optimizer_zhr.step()     
+            # backward 用来尝试更新时间卷积层-end      
 
             loss_value.append(loss.data.item())
             timer['model'] += self.split_time()
@@ -449,6 +507,19 @@ class Processor():
             self.lr = self.optimizer.param_groups[0]['lr']
             self.train_writer.add_scalar('lr', self.lr, self.global_step)
             timer['statistics'] += self.split_time()
+
+            if batch_idx % 1000 == 0:
+                # 保存模型
+                state_dict = self.Model_zhr_temp.state_dict()
+                print(state_dict)
+                weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
+                torch.save(weights, 'runs-zhr_try_to_train_third_'+str(batch_idx//1000)+'.pt')
+                # 保存模型
+
+            if batch_idx == 10000:
+                break
+            
+
 
         # statistics of time consumption and loss
         proportion = {

@@ -2,7 +2,7 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
-from feeders import tools
+from feeders import tools_zhr
 
 
 class Feeder(Dataset):
@@ -79,9 +79,10 @@ class Feeder(Dataset):
         valid_frame_num = np.sum(data_numpy.sum(0).sum(-1).sum(-1) != 0)
 
         # reshape Tx(MVC) to CTVM
-        data_numpy = tools.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
+        data_numpy = tools_zhr.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
+        # print('返回的data：',data_numpy.shape)
         if self.random_rot:
-            data_numpy = tools.random_rot(data_numpy)
+            data_numpy = tools_zhr.random_rot(data_numpy)
         if self.bone:
             from .bone_pairs import ntu_pairs
             bone_data_numpy = np.zeros_like(data_numpy)
@@ -91,7 +92,7 @@ class Feeder(Dataset):
         if self.vel:
             data_numpy[:, :-1] = data_numpy[:, 1:] - data_numpy[:, :-1]
             data_numpy[:, -1] = 0
-        
+        # print('最终返回的data：',data_numpy.shape)
         return data_numpy, label, index
 
     def top_k(self, score, top_k):

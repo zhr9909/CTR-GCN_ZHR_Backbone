@@ -410,7 +410,7 @@ class Temporal_CNN_Model(nn.Module):
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
         
         # 第四层卷积层
-        self.conv4 = nn.Conv2d(128, 1, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(128, 1, kernel_size=1, padding=0)
         self.relu4 = nn.ReLU()
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
         
@@ -426,6 +426,7 @@ class Temporal_CNN_Model(nn.Module):
         # 前向传播
         print('第一层')
         print(x.shape)
+        print(x)
         x = self.conv1(x)
         print(x.shape)
         x = self.relu1(x)
@@ -472,7 +473,7 @@ class Temporal_CNN_Model(nn.Module):
         # 使用Sigmoid激活函数，将输出值映射到0到1之间
 
         print(x)
-        x = self.sigmoid(x)
+        # x = self.sigmoid(x)
         print(x)
         
         return x
