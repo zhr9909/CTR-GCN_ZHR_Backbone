@@ -257,7 +257,7 @@ class Processor():
             self.data_loader['train'] = torch.utils.data.DataLoader(
                 dataset=Feeder(**self.arg.train_feeder_args),
                 batch_size=self.arg.batch_size,
-                shuffle=True,
+                shuffle=False,
                 num_workers=self.arg.num_worker,
                 drop_last=True,
                 worker_init_fn=init_seed)
@@ -274,7 +274,6 @@ class Processor():
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         self.Model_zhr_temp = Temporal_CNN_Model()
-        self.Model_zhr_temp = self.Model_zhr_temp.cuda(self.arg.device[0])
         print('这一步没问题1')
         # simility_array_17 = np.load('data/ntu/旋转的自相似矩阵_17.npy').reshape(64,64)
         tensor = torch.tensor(
@@ -284,10 +283,10 @@ class Processor():
           [0.5, 0.6, 0.7, 0.8, 0.9],
           [0.4, 0.5, 0.6, 0.7, 0.9]]]])
         print(tensor)
-        weights = torch.load('work_dir_train/runs-zhr_try_to_train_fourth_8.pt')
+        weights = torch.load('work_dir_train/runs-zhr_try_to_train_fourth_3.pt')
         self.Model_zhr_temp.load_state_dict(weights)
         print('这一步没问题2')
-        # self.Model_zhr_temp(tensor)
+        self.Model_zhr_temp(tensor)
         # numpy_array = self.Model_zhr_temp(torch.from_numpy(simility_array_17).unsqueeze(0).unsqueeze(1).to(torch.float32)).detach().numpy()
         # np.save('data/ntu/array_17_after_cnn.npy', numpy_array)
         print('这一步没问题3')
@@ -407,8 +406,8 @@ class Processor():
         return split_time
 
     def train(self, epoch, save_model=False):
-        self.model.train()
-        self.Model_zhr_temp.train()
+        # self.model.train()
+        # self.Model_zhr_temp.train()
         self.print_log('Training epoch: {}'.format(epoch + 1))
         loader = self.data_loader['train']
         self.adjust_learning_rate(epoch)
@@ -419,6 +418,9 @@ class Processor():
         self.record_time()
         timer = dict(dataloader=0.001, model=0.001, statistics=0.001)
         process = tqdm(loader, ncols=40)
+
+        label_numpy = np.array([])
+        name_numpy = np.array([])
 
         for batch_idx, (data_1, label_1, index, data_2, label_2, index_2) in enumerate(process):
             self.global_step += 1
@@ -433,87 +435,91 @@ class Processor():
             x_tensor_1,output_1 = self.model(data_1, label_1, index)
             x_tensor_2,output_2 = self.model(data_2, label_2, index)
 
+            '''
+            if batch_idx%2 == 0:
+                angle_y = np.pi / 6  # 绕Y轴旋转15度
+                # 2. 创建旋转矩阵
+                rotation_matrix_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)],
+                               [0, 1, 0],
+                               [-np.sin(angle_y), 0, np.cos(angle_y)]])
+                print('gugugu')
+                print(type(data_1))
+                print(data_1.shape)
+                print('gugugu')
+                data_1_trans = data_1[0]
+                data_1_trans = np.transpose(data_1_trans.cpu().numpy(), (3, 1, 2, 0))
+                for i in range(data_1_trans.shape[0]):
+                    for j in range(data_1_trans.shape[1]):
+                        data_1_trans[i][j] = np.dot(rotation_matrix_y, data_1_trans[i][j].T).T
+                data_1_trans = data_1_trans.transpose(3, 1, 2, 0)
+                x_tensor_1_trans,output_1_trans = self.model(torch.from_numpy(data_1_trans).unsqueeze(0).float().cuda(self.output_device), label_1, index)
+                similarity_numpy = np.array([]) 
+                x_tensor_1_origin = x_tensor_1.mean(1).view(64,-1)
+                x_tensor_1_trans = x_tensor_1_trans.mean(1).view(64,-1)
+                for i in range(x_tensor_1_origin.size(0)):
+                    norm_1 = torch.norm(x_tensor_1_origin[i])
+                    for j in range(x_tensor_1_trans.size(0)):
+                        norm_2 = torch.norm(x_tensor_1_trans[j])
+                        similarity_score = torch.dot(x_tensor_1_origin[i], x_tensor_1_trans[j]) / (norm_1*norm_2)
+                        similarity_numpy = np.append(similarity_numpy, similarity_score.item())
+                np.save('data/ntu/旋转的自相似矩阵_{}.npy'.format(batch_idx), similarity_numpy)
+            '''
 
-            # similarity_numpy = np.array([]) 
-            # label_zhr = np.array([]) 
-            # x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
-            # x_tensor_2 = x_tensor_2.mean(1).view(64,-1)
-            # for i in range(x_tensor_1.size(0)):
-            #     norm_1 = torch.norm(x_tensor_1[i])
-            #     for j in range(x_tensor_2.size(0)):
-            #         label_zhr = np.append(label_zhr, 1.0 - abs(i - j)/64)
-            #         norm_2 = torch.norm(x_tensor_2[j])
-            #         similarity_score = torch.dot(x_tensor_1[i], x_tensor_2[j]) / (norm_1*norm_2)
-            #         similarity_numpy = np.append(similarity_numpy, similarity_score.item())
-            # # np.save('data/ntu/simility_numpy/array_{}_{}_after_cnn.npy'.format(index,index), similarity_numpy)
-            # similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
-
-            similarity_numpy = torch.tensor([]).to(self.output_device)
+            similarity_numpy = np.array([]) 
             label_zhr = np.array([]) 
             x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+            np.save('单个视频的64帧特征5/x_tensor_origin_{}.npy'.format(index.item()),x_tensor_1.cpu().detach().numpy())
             x_tensor_2 = x_tensor_2.mean(1).view(64,-1)
+            np.save('单个视频的64帧特征5/x_tensor_rotate_{}.npy'.format(index.item()),x_tensor_2.cpu().detach().numpy())
+            name_numpy = np.append(name_numpy,index.item())
+            label_numpy = np.append(label_numpy,label_1.item())
+            
+            if batch_idx == 200:
+                np.savez('单个视频的64帧特征5/my_arrays.npz', name_numpy=name_numpy, label_numpy=label_numpy)
+                break
             for i in range(x_tensor_1.size(0)):
                 norm_1 = torch.norm(x_tensor_1[i])
                 for j in range(x_tensor_2.size(0)):
                     label_zhr = np.append(label_zhr, 1.0 - abs(i - j)/64)
                     norm_2 = torch.norm(x_tensor_2[j])
                     similarity_score = torch.dot(x_tensor_1[i], x_tensor_2[j]) / (norm_1*norm_2)
-                    similarity_score = similarity_score.unsqueeze(0)
-                    similarity_numpy = torch.cat((similarity_numpy, similarity_score))
+                    similarity_numpy = np.append(similarity_numpy, similarity_score.item())
             # np.save('data/ntu/simility_numpy/array_{}_{}_after_cnn.npy'.format(index,index), similarity_numpy)
-            similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
+            # similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
 
 
-            # loss = self.loss(output_1, label_1)
-            # # backward
+            loss = self.loss(output_1, label_1)
+            # backward
             # self.optimizer.zero_grad()
             # loss.backward()
             # self.optimizer.step()
 
-
             # backward 用来尝试更新时间卷积层-start
             # print(torch.from_numpy(similarity_numpy_matrix).unsqueeze(0).unsqueeze(1))
-            out_put_zhr = self.Model_zhr_temp(similarity_numpy_matrix.unsqueeze(0).unsqueeze(1).to(self.output_device)).to(self.output_device)
-            # out_put_zhr = similarity_numpy_matrix
-            label_zhr = torch.from_numpy(label_zhr).to(torch.float32).to(self.output_device)
-            out_put_zhr = out_put_zhr.flatten()
-            print('label_zhr:', label_zhr)
-            print('out_put_zhr形状和类型',type(out_put_zhr),out_put_zhr.shape)
-            loss_zhr = self.loss_temporary(similarity_numpy_matrix.flatten(), label_zhr)
-
-            print('给爷下降')  
-            self.optimizer.zero_grad()
-            loss_zhr.backward()
-            self.optimizer.step()  
-            print('给爷下降')   
+            # out_put_zhr = self.Model_zhr_temp(torch.from_numpy(similarity_numpy_matrix).unsqueeze(0).unsqueeze(1).to(torch.float32))
+            # label_zhr = torch.from_numpy(label_zhr).unsqueeze(0).unsqueeze(1).to(torch.float32)
+            # out_put_zhr = out_put_zhr.flatten()
+            # label_zhr = label_zhr.flatten()
+            # print('label_zhr:', label_zhr)
+            # loss_zhr = self.loss_temporary(out_put_zhr, label_zhr)
+            # self.optimizer_zhr.zero_grad()
+            # loss_zhr.backward()
+            # self.optimizer_zhr.step()     
             # backward 用来尝试更新时间卷积层-end      
 
-
-            # loss_value.append(loss.data.item())
+            loss_value.append(loss.data.item())
             timer['model'] += self.split_time()
 
             value, predict_label = torch.max(output_1.data, 1)
             acc = torch.mean((predict_label == label_1.data).float())
             acc_value.append(acc.data.item())
             self.train_writer.add_scalar('acc', acc, self.global_step)
-            # self.train_writer.add_scalar('loss', loss.data.item(), self.global_step)
+            self.train_writer.add_scalar('loss', loss.data.item(), self.global_step)
 
             # statistics
             self.lr = self.optimizer.param_groups[0]['lr']
             self.train_writer.add_scalar('lr', self.lr, self.global_step)
             timer['statistics'] += self.split_time()
-
-            if batch_idx % 200 == 0:
-                # 保存模型
-                state_dict = self.model.state_dict()
-                weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
-
-                torch.save(weights, 'data/ntu/checkpoints/'+'runs' + '-' + 'main_zhr_'+str(epoch+1) + '-' + str(int(self.global_step)) + '.pt')
-                # 保存模型
-                # break
-
-            if batch_idx == 16000:
-                break
             
 
 
@@ -627,7 +633,7 @@ class Processor():
 
                 self.train(epoch, save_model=save_model)
 
-                # self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
+                self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
 
             # test the best model
             weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-'+str(self.best_acc_epoch)+'*'))[0]

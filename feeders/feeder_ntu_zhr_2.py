@@ -53,7 +53,7 @@ class Feeder(Dataset):
         self.sample_name_1 = ['train_' + str(i) for i in range(len(self.data_1))]
 
 
-        self.data_2 = npz_data['camera2_x']
+        self.data_2 = npz_data['camera1_x_trans']
         self.label_2 = np.where(npz_data['camera2_y'] > 0)[1]
         self.sample_name_2 = ['test_' + str(i) for i in range(len(self.data_2))]
 
