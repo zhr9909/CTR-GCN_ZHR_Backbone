@@ -224,20 +224,22 @@ def get_indices(performer, camera, evaluation='CS'):
 
 
 if __name__ == '__main__':
+    print('Step1')
     camera = np.loadtxt(camera_file, dtype=np.int)  # camera id: 1, 2, 3
     performer = np.loadtxt(performer_file, dtype=np.int)  # subject id: 1~40
     label = np.loadtxt(label_file, dtype=np.int) - 1  # action label: 0~59
-
+    print('Step2')
     frames_cnt = np.loadtxt(frames_file, dtype=np.int)  # frames_cnt
     skes_name = np.loadtxt(skes_name_file, dtype=np.string_)
-
+    print('Step3')
     with open(raw_skes_joints_pkl, 'rb') as fr:
         skes_joints = pickle.load(fr)  # a list
-
+    # 下面这行让骨骼跟原点对齐
     skes_joints = seq_translation(skes_joints)
-
+    # 下面这行让所有的序列都填充成300帧的长度，填充的那些帧都是0
     skes_joints = align_frames(skes_joints, frames_cnt)  # aligned to the same frame length
-
-    evaluations = ['CS', 'CV']
+    print('Step6')
+    evaluations = [ 'CV']
     for evaluation in evaluations:
+        print('小z')
         split_dataset(skes_joints, label, performer, camera, evaluation, save_path)
