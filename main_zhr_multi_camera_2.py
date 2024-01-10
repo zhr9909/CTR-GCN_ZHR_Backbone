@@ -257,7 +257,7 @@ class Processor():
             self.data_loader['train'] = torch.utils.data.DataLoader(
                 dataset=Feeder(**self.arg.train_feeder_args),
                 batch_size=self.arg.batch_size,
-                shuffle=False,
+                shuffle=True,
                 num_workers=self.arg.num_worker,
                 drop_last=True,
                 worker_init_fn=init_seed)
@@ -274,6 +274,7 @@ class Processor():
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         self.Model_zhr_temp = Temporal_CNN_Model()
+        self.Model_zhr_temp = self.Model_zhr_temp.cuda(self.arg.device[0])
         print('这一步没问题1')
         # simility_array_17 = np.load('data/ntu/旋转的自相似矩阵_17.npy').reshape(64,64)
         tensor = torch.tensor(
@@ -283,10 +284,10 @@ class Processor():
           [0.5, 0.6, 0.7, 0.8, 0.9],
           [0.4, 0.5, 0.6, 0.7, 0.9]]]])
         print(tensor)
-        weights = torch.load('work_dir_train/runs-zhr_try_to_train_fourth_3.pt')
+        weights = torch.load('work_dir_train/runs-zhr_try_to_train_fourth_8.pt')
         self.Model_zhr_temp.load_state_dict(weights)
         print('这一步没问题2')
-        self.Model_zhr_temp(tensor)
+        # self.Model_zhr_temp(tensor)
         # numpy_array = self.Model_zhr_temp(torch.from_numpy(simility_array_17).unsqueeze(0).unsqueeze(1).to(torch.float32)).detach().numpy()
         # np.save('data/ntu/array_17_after_cnn.npy', numpy_array)
         print('这一步没问题3')
@@ -406,8 +407,8 @@ class Processor():
         return split_time
 
     def train(self, epoch, save_model=False):
-        # self.model.train()
-        # self.Model_zhr_temp.train()
+        self.model.train()
+        self.Model_zhr_temp.train()
         self.print_log('Training epoch: {}'.format(epoch + 1))
         loader = self.data_loader['train']
         self.adjust_learning_rate(epoch)
@@ -419,16 +420,8 @@ class Processor():
         timer = dict(dataloader=0.001, model=0.001, statistics=0.001)
         process = tqdm(loader, ncols=40)
 
-        label_numpy = np.array([])
-        name_numpy = np.array([])
-
         for batch_idx, (data_1, label_1, index, data_2, label_2, index_2) in enumerate(process):
             self.global_step += 1
-            # if label_1.item()==5:
-            #     np.save('data/ntu/提取成64帧的原始骨骼数据/64帧原始数据_{}.npy'.format(index.item()), data_1)
-            #     np.save('data/ntu/提取成64帧的原始骨骼数据/64帧旋转数据_{}.npy'.format(index.item()), data_2)
-            # continue
-            print('label',label_1.shape)
             with torch.no_grad():
                 data_1 = data_1.float().cuda(self.output_device)
                 label_1 = label_1.long().cuda(self.output_device)
@@ -437,73 +430,84 @@ class Processor():
             timer['dataloader'] += self.split_time()
 
             # forward
-            # x_tensor_1 = torch.tensor([]).to(self.output_device)
-            # output_1 = torch.tensor([]).to(self.output_device)
-            # subtensor_shape = (1, 3, 4, 25, 2)
-            # subtensors_1 = data_1.reshape(16, *subtensor_shape)
-            # for i, sub in enumerate(subtensors_1):
-            #     x1,out1 = self.model(sub, label_1[i*4:(i+1)*4], index[i*4:(i+1)*4])
-            #     # print('看看out',type(out1),out1.shape)
-            #     x_tensor_1 = torch.cat((x_tensor_1, x1))
-            #     output_1 = torch.cat((output_1, out1))
+            x_tensor_1 = torch.tensor([]).to(self.output_device)
+            output_1 = torch.tensor([]).to(self.output_device)
+            subtensor_shape = (1, 3, 4, 25, 2)
+            subtensors_1 = data_1.reshape(16, *subtensor_shape)
+            for i, sub in enumerate(subtensors_1):
+                x1,out1 = self.model(sub, label_1[i*4:(i+1)*4], index[i*4:(i+1)*4])
+                # print('看看out',type(out1),out1.shape)
+                x_tensor_1 = torch.cat((x_tensor_1, x1))
+                output_1 = torch.cat((output_1, out1))
 
-            # x_tensor_2 = torch.tensor([]).to(self.output_device)
-            # output_2 = torch.tensor([]).to(self.output_device)
-            # subtensor_shape = (1, 3, 4, 25, 2)
-            # subtensors_2 = data_2.reshape(16, *subtensor_shape)
-            # for i, sub in enumerate(subtensors_2):
-            #     x2,out2 = self.model(sub, label_2[i*4:(i+1)*4], index[i*4:(i+1)*4])
-            #     # print('看看out',type(out2),out2.shape)
-            #     x_tensor_2 = torch.cat((x_tensor_2, x2))
-            #     output_2 = torch.cat((output_2, out1))
-            data_1[:, 2, :, :, :] = 0
-            data_2[:, 2, :, :, :] = 0
-            x_tensor_1,output_1 = self.model(data_1, label_1, index)
-            x_tensor_2,output_2 = self.model(data_2, label_2, index)
+            x_tensor_2 = torch.tensor([]).to(self.output_device)
+            output_2 = torch.tensor([]).to(self.output_device)
+            subtensor_shape = (1, 3, 4, 25, 2)
+            subtensors_2 = data_2.reshape(16, *subtensor_shape)
+            for i, sub in enumerate(subtensors_2):
+                x2,out2 = self.model(sub, label_2[i*4:(i+1)*4], index[i*4:(i+1)*4])
+                # print('看看out',type(out2),out2.shape)
+                x_tensor_2 = torch.cat((x_tensor_2, x2))
+                output_2 = torch.cat((output_2, out1))
 
 
+            # similarity_numpy = np.array([]) 
+            # label_zhr = np.array([]) 
+            # x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+            # x_tensor_2 = x_tensor_2.mean(1).view(64,-1)
+            # for i in range(x_tensor_1.size(0)):
+            #     norm_1 = torch.norm(x_tensor_1[i])
+            #     for j in range(x_tensor_2.size(0)):
+            #         label_zhr = np.append(label_zhr, 1.0 - abs(i - j)/64)
+            #         norm_2 = torch.norm(x_tensor_2[j])
+            #         similarity_score = torch.dot(x_tensor_1[i], x_tensor_2[j]) / (norm_1*norm_2)
+            #         similarity_numpy = np.append(similarity_numpy, similarity_score.item())
+            # # np.save('data/ntu/simility_numpy/array_{}_{}_after_cnn.npy'.format(index,index), similarity_numpy)
+            # similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
 
-            similarity_numpy = np.array([]) 
+            similarity_numpy = torch.tensor([]).to(self.output_device)
             label_zhr = np.array([]) 
             x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
-            np.save('单个视频的64帧特征YOLO/x_tensor_origin_{}.npy'.format(index.item()),x_tensor_1.cpu().detach().numpy())
             x_tensor_2 = x_tensor_2.mean(1).view(64,-1)
-            np.save('单个视频的64帧特征YOLO/x_tensor_rotate_{}.npy'.format(index.item()),x_tensor_2.cpu().detach().numpy())
-            name_numpy = np.append(name_numpy,index.item())
-            label_numpy = np.append(label_numpy,label_1.item())
-            
-            if batch_idx == 1000:
-                np.savez('单个视频的64帧特征YOLO/my_arrays.npz', name_numpy=name_numpy, label_numpy=label_numpy)
-                break
             for i in range(x_tensor_1.size(0)):
                 norm_1 = torch.norm(x_tensor_1[i])
                 for j in range(x_tensor_2.size(0)):
-                    label_zhr = np.append(label_zhr, 1.0 - abs(i - j)/64)
+                    if abs(i - j)<3:
+                        label_zhr = np.append(label_zhr, 1.0)
+                    else:
+                        label_zhr = np.append(label_zhr, 0.0)
                     norm_2 = torch.norm(x_tensor_2[j])
                     similarity_score = torch.dot(x_tensor_1[i], x_tensor_2[j]) / (norm_1*norm_2)
-                    similarity_numpy = np.append(similarity_numpy, similarity_score.item())
+                    similarity_score = similarity_score.unsqueeze(0)
+                    similarity_numpy = torch.cat((similarity_numpy, similarity_score))
             # np.save('data/ntu/simility_numpy/array_{}_{}_after_cnn.npy'.format(index,index), similarity_numpy)
-            # similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
+            similarity_numpy_matrix = similarity_numpy.reshape(64, 64)
 
 
             # loss = self.loss(output_1, label_1)
-            # backward
+            # # backward
             # self.optimizer.zero_grad()
             # loss.backward()
             # self.optimizer.step()
 
+
             # backward 用来尝试更新时间卷积层-start
             # print(torch.from_numpy(similarity_numpy_matrix).unsqueeze(0).unsqueeze(1))
-            # out_put_zhr = self.Model_zhr_temp(torch.from_numpy(similarity_numpy_matrix).unsqueeze(0).unsqueeze(1).to(torch.float32))
-            # label_zhr = torch.from_numpy(label_zhr).unsqueeze(0).unsqueeze(1).to(torch.float32)
+            # out_put_zhr = self.Model_zhr_temp(similarity_numpy_matrix.unsqueeze(0).unsqueeze(1).to(self.output_device)).to(self.output_device)
+            # out_put_zhr = similarity_numpy_matrix
+            label_zhr = torch.from_numpy(label_zhr).to(torch.float32).to(self.output_device)
             # out_put_zhr = out_put_zhr.flatten()
-            # label_zhr = label_zhr.flatten()
             # print('label_zhr:', label_zhr)
-            # loss_zhr = self.loss_temporary(out_put_zhr, label_zhr)
-            # self.optimizer_zhr.zero_grad()
-            # loss_zhr.backward()
-            # self.optimizer_zhr.step()     
+            # print('out_put_zhr形状和类型',type(out_put_zhr),out_put_zhr.shape)
+            loss_zhr = self.loss_temporary(similarity_numpy_matrix.flatten(), label_zhr)
+
+            print('给爷下降')  
+            self.optimizer.zero_grad()
+            loss_zhr.backward()
+            self.optimizer.step()  
+            print('给爷下降')   
             # backward 用来尝试更新时间卷积层-end      
+
 
             # loss_value.append(loss.data.item())
             timer['model'] += self.split_time()
@@ -518,6 +522,18 @@ class Processor():
             self.lr = self.optimizer.param_groups[0]['lr']
             self.train_writer.add_scalar('lr', self.lr, self.global_step)
             timer['statistics'] += self.split_time()
+
+            if batch_idx % 200 == 0:
+                # 保存模型
+                state_dict = self.model.state_dict()
+                weights = OrderedDict([[k.split('module.')[-1], v.cpu()] for k, v in state_dict.items()])
+
+                torch.save(weights, 'data/ntu/checkpoints_3/'+'runs' + '-' + 'main_zhr_'+str(epoch+1) + '-' + str(int(self.global_step)) + '.pt')
+                # 保存模型
+                # break
+
+            if batch_idx == 16000:
+                break
             
 
 
@@ -631,7 +647,7 @@ class Processor():
 
                 self.train(epoch, save_model=save_model)
 
-                self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
+                # self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
 
             # test the best model
             weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-'+str(self.best_acc_epoch)+'*'))[0]

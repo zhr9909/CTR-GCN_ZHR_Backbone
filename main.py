@@ -441,11 +441,16 @@ class Processor():
             step = 0
             process = tqdm(self.data_loader[ln], ncols=40)
             for batch_idx, (data, label, index) in enumerate(process):
+                print(data.shape)
                 label_list.append(label)
                 with torch.no_grad():
                     data = data.float().cuda(self.output_device)
                     label = label.long().cuda(self.output_device)
                     output = self.model(data)
+                    # norm0 = torch.norm(x_tensor[0])
+                    # norm1 = torch.norm(x_tensor[1])
+                    # print('张量内积: ',torch.dot(x_tensor[0],x_tensor[1])/(norm0*norm1))
+                    print(output.shape)
                     loss = self.loss(output, label)
                     score_frag.append(output.data.cpu().numpy())
                     loss_value.append(loss.data.item())

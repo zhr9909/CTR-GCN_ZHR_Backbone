@@ -433,6 +433,9 @@ class Processor():
             f_r = open(result_file, 'w')
         self.model.eval()
         self.print_log('Eval epoch: {}'.format(epoch + 1))
+        # result_tensor_list = {} #存放主干网，全连接层前的输出张量，最终存到文件里使用
+        # result_tensor_list[0] = torch.randn(5,6,6,6)
+        # torch.save(result_tensor_list, 'work_dir3/result_tensor_list/result_tensor_list.pth')
         for ln in loader_name:
             loss_value = []
             score_frag = []
@@ -441,15 +444,16 @@ class Processor():
             step = 0
             process = tqdm(self.data_loader[ln], ncols=40)
             for batch_idx, (data, label, index) in enumerate(process):
-                print(data.shape)
+                print('批量中的data: ',data.shape)
+                print('批量中的index: ',index.shape)
                 label_list.append(label)
                 with torch.no_grad():
                     data = data.float().cuda(self.output_device)
                     label = label.long().cuda(self.output_device)
-                    output = self.model(data)
-                    # norm0 = torch.norm(x_tensor[0])
-                    # norm1 = torch.norm(x_tensor[1])
-                    # print('张量内积: ',torch.dot(x_tensor[0],x_tensor[1])/(norm0*norm1))
+                    x_tensor,output = self.model(data,label,index)
+                    norm0 = torch.norm(x_tensor[0])
+                    norm1 = torch.norm(x_tensor[1])
+                    print('张量内积: ',torch.dot(x_tensor[0],x_tensor[1])/(norm0*norm1))
                     print(output.shape)
                     loss = self.loss(output, label)
                     score_frag.append(output.data.cpu().numpy())
@@ -505,6 +509,7 @@ class Processor():
                 writer = csv.writer(f)
                 writer.writerow(each_acc)
                 writer.writerows(confusion)
+
 
     def start(self):
         if self.arg.phase == 'train':

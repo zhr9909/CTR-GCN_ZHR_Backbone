@@ -77,6 +77,7 @@ class Feeder(Dataset):
         label = self.label[index]
         data_numpy = np.array(data_numpy)
         valid_frame_num = np.sum(data_numpy.sum(0).sum(-1).sum(-1) != 0)
+
         # reshape Tx(MVC) to CTVM
         data_numpy = tools.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
         if self.random_rot:
@@ -90,7 +91,7 @@ class Feeder(Dataset):
         if self.vel:
             data_numpy[:, :-1] = data_numpy[:, 1:] - data_numpy[:, :-1]
             data_numpy[:, -1] = 0
-
+        
         return data_numpy, label, index
 
     def top_k(self, score, top_k):

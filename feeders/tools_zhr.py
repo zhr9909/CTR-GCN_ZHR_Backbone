@@ -29,12 +29,25 @@ def valid_crop_resize(data_numpy,valid_frame_num,p_interval,window):
 
     # resize
     data = torch.tensor(data,dtype=torch.float)
+    # print('data.shape',data.shape)
     data = data.permute(0, 2, 3, 1).contiguous().view(C * V * M, cropped_length)
+    # print('data.shape改变0',data.shape)
     data = data[None, None, :, :]
+    # print('data.shape改变1',data.shape)
     data = F.interpolate(data, size=(C * V * M, window), mode='bilinear',align_corners=False).squeeze() # could perform both up sample and down sample
+    # print('data.shape改变2',data.shape)
     data = data.contiguous().view(C, V, M, window).permute(0, 3, 1, 2).contiguous().numpy()
-
+    # print('data.shape改变3',data.shape)
     return data
+
+def shunxun_resize(data_numpy,valid_frame_num,window):
+    C, T, V, M = data_numpy.shape
+    data1 = torch.tensor(data_numpy[:, 0:(valid_frame_num-window)*2:2, :, :],dtype=torch.float)
+    data2 = torch.tensor(data_numpy[:, (valid_frame_num-window)*2:valid_frame_num, :, :],dtype=torch.float)
+    data = torch.cat((data1, data2), dim=1)
+    print('data.shape_zhr ',data.shape)
+    return data.numpy()
+
 
 def downsample(data_numpy, step, random_sample=True):
     # input: C,T,V,M

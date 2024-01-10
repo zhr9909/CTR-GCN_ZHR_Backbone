@@ -236,7 +236,7 @@ class Processor():
             pass
         else:
             self.load_optimizer()
-            self.load_data()
+            # self.load_data()
         self.lr = self.arg.base_lr
         self.best_acc = 0
         self.best_acc_epoch = 0
@@ -406,21 +406,79 @@ class Processor():
         return split_time
 
     def train(self, epoch, save_model=False):
-        # self.model.train()
-        # self.Model_zhr_temp.train()
-        self.print_log('Training epoch: {}'.format(epoch + 1))
-        loader = self.data_loader['train']
-        self.adjust_learning_rate(epoch)
+ 
+        count_file_all = 0
+        for file in os.listdir('./data/ntu/train_npy_csv标准格式'):
+            # print(file[:-9])
+            print(count_file_all)
+            count_file_all += 1
 
-        loss_value = []
-        acc_value = []
-        self.train_writer.add_scalar('epoch', epoch, self.global_step)
-        self.record_time()
-        timer = dict(dataloader=0.001, model=0.001, statistics=0.001)
-        process = tqdm(loader, ncols=40)
+            final_numpy = np.empty((0, 6400))
+            kkk = np.load('data/ntu/train_npy_csv标准格式/{}'.format(file))
+            kkk = torch.from_numpy(kkk).unsqueeze(0)
 
-        label_numpy = np.array([])
-        name_numpy = np.array([])
+            random_number = random.randint(0, 24)
+            
+            for i in range(int(kkk.shape[2]/64)):
+                k = kkk[:, :, i*64:(i+1)*64, :, :]
+                k = k.float().cuda(self.output_device)
+                k[:, 2, :, :, :] = 0
+
+                k[:, :, :, random_number, :] = 0
+                k[:, :, :, (random_number+1)%25, :] = 0
+                k[:, :, :, (random_number+2)%25, :] = 0
+                k[:, :, :, (random_number+3)%25, :] = 0
+                k[:, :, :, (random_number+4)%25, :] = 0
+                k[:, :, :, (random_number+5)%25, :] = 0
+                k[:, :, :, (random_number+6)%25, :] = 0
+                k[:, :, :, (random_number+7)%25, :] = 0
+                k[:, :, :, (random_number+8)%25, :] = 0
+                k[:, :, :, (random_number+9)%25, :] = 0
+
+                # for j in range(16):
+                #     x_tensor_1,output_1 = self.model(k[:, :, j*4:(j+1)*4, :, :], torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+                #     x_tensor_1 = x_tensor_1.mean(1).view(4,-1)
+                #     x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+                #     final_numpy = np.vstack((final_numpy, x_tensor_1))
+                x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+                x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+                x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+                final_numpy = np.vstack((final_numpy, x_tensor_1))
+            # print(final_numpy.shape)
+            # if int(kkk.shape[2]/64)*64 < kkk.shape[2]:
+            #     k = kkk[:, :, int(kkk.shape[2]/64)*64:, :, :]
+            #     k = k.float().cuda(self.output_device)
+            #     k[:, 2, :, :, :] = 0
+            #     x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+            #     x_tensor_1 = x_tensor_1.mean(1).view(x_tensor_1.shape[0],-1)
+            #     x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+            #     final_numpy = np.vstack((final_numpy, x_tensor_1))
+            np.save('../../../../data/ssd1/zhanghaoran/zhr/pose_action_feature_遮挡十处/{}(用我的模型跑的,时间幅度为64).npy'.format(file[:-9]),final_numpy)
+
+
+        # final_numpy = np.empty((0, 6400))
+        # kkk = np.load('data/ntu/train_npy_csv标准格式/stu2_41_numpy的标准格式.npy')
+        # kkk = torch.from_numpy(kkk).unsqueeze(0)
+        # for i in range(int(kkk.shape[2]/64)):
+        #     # print(i)
+        #     k = kkk[:, :, i*64:(i+1)*64, :, :]
+        #     k = k.float().cuda(self.output_device)
+        #     k[:, 2, :, :, :] = 0
+        #     # for j in range(16):
+        #     #     x_tensor_1,output_1 = self.model(k[:, :, j*4:(j+1)*4, :, :], torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+        #     #     x_tensor_1 = x_tensor_1.mean(1).view(4,-1)
+        #     #     x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+        #     #     final_numpy = np.vstack((final_numpy, x_tensor_1))
+        #     x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+        #     x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+        #     x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+        #     final_numpy = np.vstack((final_numpy, x_tensor_1))
+        # np.save('单个视频的64帧特征10/stu2_41_numpy(benchmark模型跑的,时间幅度为64).npy',final_numpy)
+
+        return
+        
+
+
 
         for batch_idx, (data_1, label_1, index, data_2, label_2, index_2) in enumerate(process):
             self.global_step += 1
@@ -428,7 +486,7 @@ class Processor():
             #     np.save('data/ntu/提取成64帧的原始骨骼数据/64帧原始数据_{}.npy'.format(index.item()), data_1)
             #     np.save('data/ntu/提取成64帧的原始骨骼数据/64帧旋转数据_{}.npy'.format(index.item()), data_2)
             # continue
-            print('label',label_1.shape)
+            print('data1:',data_1.shape,type(data_1))
             with torch.no_grad():
                 data_1 = data_1.float().cuda(self.output_device)
                 label_1 = label_1.long().cuda(self.output_device)
@@ -466,14 +524,14 @@ class Processor():
             similarity_numpy = np.array([]) 
             label_zhr = np.array([]) 
             x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
-            np.save('单个视频的64帧特征YOLO/x_tensor_origin_{}.npy'.format(index.item()),x_tensor_1.cpu().detach().numpy())
+            np.save('单个视频的64帧特征9/x_tensor_origin_{}.npy'.format(index.item()),x_tensor_1.cpu().detach().numpy())
             x_tensor_2 = x_tensor_2.mean(1).view(64,-1)
-            np.save('单个视频的64帧特征YOLO/x_tensor_rotate_{}.npy'.format(index.item()),x_tensor_2.cpu().detach().numpy())
+            np.save('单个视频的64帧特征9/x_tensor_rotate_{}.npy'.format(index.item()),x_tensor_2.cpu().detach().numpy())
             name_numpy = np.append(name_numpy,index.item())
             label_numpy = np.append(label_numpy,label_1.item())
             
-            if batch_idx == 1000:
-                np.savez('单个视频的64帧特征YOLO/my_arrays.npz', name_numpy=name_numpy, label_numpy=label_numpy)
+            if batch_idx == 200:
+                np.savez('单个视频的64帧特征/my_arrays.npz', name_numpy=name_numpy, label_numpy=label_numpy)
                 break
             for i in range(x_tensor_1.size(0)):
                 norm_1 = torch.norm(x_tensor_1[i])
@@ -619,19 +677,19 @@ class Processor():
 
     def start(self):
         if self.arg.phase == 'train':
-            self.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))
-            self.global_step = self.arg.start_epoch * len(self.data_loader['train']) / self.arg.batch_size
-            def count_parameters(model):
-                return sum(p.numel() for p in model.parameters() if p.requires_grad)
-            self.print_log(f'# Parameters: {count_parameters(self.model)}')
-            print('range大小',self.arg.start_epoch, self.arg.num_epoch)
-            for epoch in range(self.arg.start_epoch, self.arg.num_epoch):
-                save_model = (((epoch + 1) % self.arg.save_interval == 0) or (
-                        epoch + 1 == self.arg.num_epoch)) and (epoch+1) > self.arg.save_epoch
+            # self.print_log('Parameters:\n{}\n'.format(str(vars(self.arg))))
+            # self.global_step = self.arg.start_epoch * len(self.data_loader['train']) / self.arg.batch_size
+            # def count_parameters(model):
+            #     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+            # self.print_log(f'# Parameters: {count_parameters(self.model)}')
+            # print('range大小',self.arg.start_epoch, self.arg.num_epoch)
+            # for epoch in range(self.arg.start_epoch, self.arg.num_epoch):
+            #     save_model = (((epoch + 1) % self.arg.save_interval == 0) or (
+            #             epoch + 1 == self.arg.num_epoch)) and (epoch+1) > self.arg.save_epoch
 
-                self.train(epoch, save_model=save_model)
+            self.train(1, save_model=1)
 
-                self.eval(epoch, save_score=self.arg.save_score, loader_name=['test'])
+            self.eval(1, save_score=self.arg.save_score, loader_name=['test'])
 
             # test the best model
             weights_path = glob.glob(os.path.join(self.arg.work_dir, 'runs-'+str(self.best_acc_epoch)+'*'))[0]

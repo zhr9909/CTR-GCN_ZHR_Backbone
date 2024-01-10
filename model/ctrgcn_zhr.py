@@ -136,15 +136,17 @@ class MultiScale_TemporalConv(nn.Module):
 
     def forward(self, x):
         # Input dim: (N,C,T,V)
+        # print('TemporalConv里x:', x.shape)
         res = self.residual(x)
         branch_outs = []
         for tempconv in self.branches:
             out = tempconv(x)
             branch_outs.append(out)
+            # print('out形状:',out.shape)
 
         out = torch.cat(branch_outs, dim=1)
         out += res
-        # print('out的形状 ',out.shape)
+        # print('最终out的形状 ',out.shape)
         return out
 
 
@@ -321,19 +323,19 @@ class Model(nn.Module):
             self.drop_out = lambda x: x
 
     def forward(self, x, label, index):
-        print('shape1',x.shape)
-        print('label',label.shape)
-        print('index',index.shape)
+        # print('shape1',x.shape)
+        # print('label',label.shape)
+        # print('index',index.shape)
         if len(x.shape) == 3:
             N, T, VC = x.shape
             x = x.view(N, T, self.num_point, -1).permute(0, 3, 1, 2).contiguous().unsqueeze(-1)
         N, C, T, V, M = x.size()
-        print("小z先生")
+        # print("小z先生")
         x = x.permute(0, 4, 3, 1, 2).contiguous().view(N, M * V * C, T)
-        print('shape2',x.shape)
+        # print('shape2',x.shape)
         x = self.data_bn(x)
         x = x.view(N, M, V, C, T).permute(0, 1, 3, 4, 2).contiguous().view(N * M, C, T, V)
-        print('shape3',x.shape) #torch.Size([128, 3, 64, 25])
+        # print('shape3',x.shape) #torch.Size([128, 3, 64, 25])
         x = self.l1(x)
         x = self.l2(x)
         x = self.l3(x)
@@ -345,7 +347,7 @@ class Model(nn.Module):
         x = self.l9(x)
         x = self.l10(x)
 
-        print('shape4',x.shape) #torch.Size([128, 256, 16, 25])
+        # print('shape4',x.shape) #torch.Size([128, 256, 16, 25])
         # N*M,C,T,V
         c_new = x.size(1)
         Z = x
@@ -379,14 +381,14 @@ class Model(nn.Module):
             norm1 = torch.norm(ZZZ1[i])
             print('内积比较',i,': ',torch.dot(ZZZ0[20],ZZZ1[1])/(norm0*norm1))
         '''
-        print('shape5',x.shape) #torch.Size([64, 2, 256, 400])
+        # print('shape5',x.shape) #torch.Size([64, 2, 256, 400])
         x = x.mean(3).mean(1)
-        print('shape6',x.shape) #torch.Size([64, 256])
+        # print('shape6',x.shape) #torch.Size([64, 256])
         x = self.drop_out(x)
-        print('shape7',x.shape) #torch.Size([64, 256])
-        print('self.fc(x)',self.fc(x).shape)
+        # print('shape7',x.shape) #torch.Size([64, 256])
+        # print('self.fc(x)',self.fc(x).shape)
         z_size = x.size(0)
-        Z = Z.view(z_size, 2, 256, 64, 25).permute(0,3,1,4,2)
+        Z = Z.view(z_size, 2, 256, T, 25).permute(0,3,1,4,2)
         Z = Z[0]
         return Z, self.fc(x) # Z.shape = ([1, 64, 2, 25, 256])
     
@@ -473,7 +475,7 @@ class Temporal_CNN_Model(nn.Module):
         # 使用Sigmoid激活函数，将输出值映射到0到1之间
 
         print(x)
-        # x = self.sigmoid(x)
+        x = self.sigmoid(x)
         print(x)
         
         return x

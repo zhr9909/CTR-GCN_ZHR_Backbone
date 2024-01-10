@@ -77,12 +77,14 @@ class Feeder(Dataset):
         label = self.label[index]
         data_numpy = np.array(data_numpy)
         valid_frame_num = np.sum(data_numpy.sum(0).sum(-1).sum(-1) != 0)
+        if index==0:
+            print('长度 ',valid_frame_num)
 
         # reshape Tx(MVC) to CTVM
         if valid_frame_num<=self.window_size:
             data_numpy = tools_zhr.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
         else:
-            data_numpy = tools_zhr.shunxun_resize(data_numpy, valid_frame_num, self.window_size)
+            data_numpy = tools_zhr.valid_crop_resize(data_numpy, valid_frame_num, self.p_interval, self.window_size)
         # print('返回的data：',data_numpy.shape)
         if self.random_rot:
             data_numpy = tools_zhr.random_rot(data_numpy)
