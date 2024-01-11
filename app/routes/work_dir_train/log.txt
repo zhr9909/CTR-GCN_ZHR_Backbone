@@ -1,0 +1,11 @@
+[ Thu Jan 11 01:16:36 2024 ] Load weights from runs-main_zhr_2-28475.pt.
+[ Thu Jan 11 01:17:25 2024 ] Load weights from CTR_ZHR/runs-main_zhr_2-28475.pt.
+[ Thu Jan 11 01:17:27 2024 ] using warm up, epoch: 5
+[ Thu Jan 11 01:18:11 2024 ] Load weights from CTR_ZHR/runs-main_zhr_2-28475.pt.
+[ Thu Jan 11 01:18:14 2024 ] using warm up, epoch: 5
+[ Thu Jan 11 01:30:02 2024 ] Load weights from CTR_ZHR/runs-main_zhr_2-28475.pt.
+[ Thu Jan 11 01:30:05 2024 ] using warm up, epoch: 5
+[ Thu Jan 11 01:31:23 2024 ] Load weights from CTR_ZHR/runs-main_zhr_2-28475.pt.
+[ Thu Jan 11 01:31:25 2024 ] using warm up, epoch: 5
+[ Thu Jan 11 01:33:16 2024 ] Load weights from CTR_ZHR/runs-main_zhr_2-28475.pt.
+[ Thu Jan 11 01:33:20 2024 ] using warm up, epoch: 5
