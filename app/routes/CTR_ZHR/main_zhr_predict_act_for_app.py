@@ -388,51 +388,26 @@ class Processor():
         self.record_time()
         return split_time
 
-    def train(self, epoch, save_model=False):
- 
-        count_file_all = 0
-        for file in os.listdir('data/ntu/train_npy_csv标准格式'):
-            # print(file[:-9])
-            print(count_file_all)
-            count_file_all += 1
-            if count_file_all == 2:
-                break
+    def train(self, pose):
 
-            final_numpy = np.empty((0, 6400))
-            kkk = np.load('data/ntu/train_npy_csv标准格式/{}'.format(file))
-            kkk = torch.from_numpy(kkk).unsqueeze(0)
+        final_numpy = np.empty((0, 6400))
+        kkk = torch.from_numpy(pose).unsqueeze(0)
 
-            random_number = random.randint(0, 24)
-            
-            print(kkk.shape)
-            for i in range(1):
-                k = kkk[:, :, i*64:(i+1)*64, :, :]
-                k = k.float().cuda(self.output_device)
-                print(self.output_device)
+        
+        print(kkk.shape)
+        for i in range(kkk.shape[2]//64):
+            k = kkk[:, :, i*64:(i+1)*64, :, :]
+            k = k.float().cuda(self.output_device)
+            print(self.output_device)
 
-                # for j in range(16):
-                #     x_tensor_1,output_1 = self.model(k[:, :, j*4:(j+1)*4, :, :], torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
-                #     x_tensor_1 = x_tensor_1.mean(1).view(4,-1)
-                #     x_tensor_1 = x_tensor_1.cpu().detach().numpy()
-                #     final_numpy = np.vstack((final_numpy, x_tensor_1))
-                print(k.shape,1234567) #torch.Size([1, 3, 64, 25, 2])
-                x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
-                print(x_tensor_1.shape)
-                x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
-                x_tensor_1 = x_tensor_1.cpu().detach().numpy()
-                final_numpy = np.vstack((final_numpy, x_tensor_1))
-            # print(final_numpy.shape)
-            # if int(kkk.shape[2]/64)*64 < kkk.shape[2]:
-            #     k = kkk[:, :, int(kkk.shape[2]/64)*64:, :, :]
-            #     k = k.float().cuda(self.output_device)
-            #     k[:, 2, :, :, :] = 0
-            #     x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
-            #     x_tensor_1 = x_tensor_1.mean(1).view(x_tensor_1.shape[0],-1)
-            #     x_tensor_1 = x_tensor_1.cpu().detach().numpy()
-            #     final_numpy = np.vstack((final_numpy, x_tensor_1))
-            # np.save('../../../../data/ssd1/zhanghaoran/zhr/pose_action_feature_遮挡十处/{}(用我的模型跑的,时间幅度为64).npy'.format(file[:-9]),final_numpy)
+            x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+            print(x_tensor_1.shape)
+            x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+            x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+            final_numpy = np.vstack((final_numpy, x_tensor_1))
 
-        return
+
+        return final_numpy
 
 
 def get_processor():
