@@ -1,7 +1,10 @@
 from flask import Flask, request, Response
 import yaml
 import numpy as np
+import json
 from app.routes.push_pose_to_GCN import push_pose_to_GCN_function
+from app.util.change_point_33_to_25 import change_point_33_to_25
+from app.util.pose_standardization import pose_standardization
 import matplotlib.pyplot as plt
 from YOLO.predict_one_image import predict_one_image
 
@@ -15,9 +18,12 @@ def video_pose_segmentation_by_sample_feature_function():
     except KeyError as e:
         print('请求的JSON参数不全')
         return '请求的JSON参数不全'
+    
+    pose = np.array(json.loads(pose))
+    print('pose.shape: ',pose.shape)
+    pose = change_point_33_to_25(pose)
+    pose = pose_standardization(pose)
 
-    print(len(pose)//3//25//2)
-    pose = np.array(pose).reshape((3,len(pose)//3//25//2,25,2))
     videoFeature = push_pose_to_GCN_function(pose)
 
     try:
@@ -34,15 +40,17 @@ def video_pose_segmentation_by_sample_feature_function():
 
     similirityMatrix = np.dot(normalized_sampleFeature, normalized_videoFeature.T) #!!!特征形似度矩阵!!!
 
+    print('特征形似度矩阵的形状：',similirityMatrix.shape)
 
+    YOLO_Predict_result_list = []
     for i in range(similirityMatrix.shape[1]//64):
-        gululu = similirityMatrix[32:64,i*64:(i+1)*64]
+        gululu = similirityMatrix[:,i*64:(i+1)*64]
 
         fig = plt.figure(figsize=(150, 10),dpi=12)
         plt.imshow(gululu, cmap='coolwarm', interpolation='nearest',vmin=0,vmax=0.7)
         plt.xticks([])
         plt.yticks([])
-        plt.savefig('app的目标检测尝试.png',bbox_inches='tight', pad_inches=0)
+        # plt.savefig('app的目标检测尝试.png',bbox_inches='tight', pad_inches=0)
 
 
         canvas = fig.canvas
@@ -62,10 +70,27 @@ def video_pose_segmentation_by_sample_feature_function():
 
         fig_array = np.ascontiguousarray(fig_array[:, :, [2, 1, 0]])
         print(fig_array.shape)
+
+        subResult = predict_one_image(fig_array) # 每次YOLO推理得到的结果(conf,x,y,w,h)
+        if len(subResult) > 0:
+            for k in range(len(subResult)):
+                # 处理得到真实的推理结果时间下标
+                subResult[k] = [subResult[k][0],subResult[k][1]*64+i*64,subResult[k][2],subResult[k][3]*64,subResult[k][0]] 
+
+        YOLO_Predict_result_list.append(subResult)
+
+    for i in range(len(YOLO_Predict_result_list)):
+        print('YOLO_Predict_result_list:',YOLO_Predict_result_list[i])
     
-        predict_one_image(fig_array)
+    Final_YOLO_Predict_result_list = []
+    for i in range(len(YOLO_Predict_result_list)):
+        for j in range(len(YOLO_Predict_result_list[i])):
+            x1 = YOLO_Predict_result_list[i][j][1] - YOLO_Predict_result_list[i][j][3]/2
+            x2 = YOLO_Predict_result_list[i][j][1] + YOLO_Predict_result_list[i][j][3]/2
+            Final_YOLO_Predict_result_list.append([x1,x2])
 
+    print('Final_YOLO_Predict_result_list',Final_YOLO_Predict_result_list)
 
-
-    return '标准样例提取并保存成功'
-
+    # return '标准样例提取并保存成功'
+    return Final_YOLO_Predict_result_list
+    # return [[136.7638645172119, 159.135892868042], [218.963623046875, 237.43548583984375], [239.6745629310608, 251.40884923934937]]

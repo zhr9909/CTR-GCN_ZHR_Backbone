@@ -22,7 +22,7 @@ if p.config is not None:
     parser.set_defaults(**default_arg)
 
 arg = parser.parse_args()
-arg.device = 3
+arg.device = 2
 print(type(arg))
 init_seed(arg.seed)
 print(arg)

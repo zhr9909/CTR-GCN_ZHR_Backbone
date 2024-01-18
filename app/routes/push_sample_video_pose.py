@@ -9,7 +9,7 @@ def push_sample_video_pose_to_GCN_and_save_function():
     data = request.json
     try:
         pose = data['pose']
-        name = data['name']
+        name = data['actionType']
     except KeyError as e:
         print('请求的JSON参数不全')
         return '请求的JSON参数不全'
