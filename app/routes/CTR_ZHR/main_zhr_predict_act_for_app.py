@@ -408,6 +408,39 @@ class Processor():
 
 
         return final_numpy
+    
+    def train2(self, pose):
+
+        final_numpy = np.empty((0, 6400))
+        kkk = torch.from_numpy(pose).unsqueeze(0)
+
+
+        
+        print(kkk.shape)
+        for i in range(kkk.shape[2]//32-1):
+            if i == 0:
+                k = kkk[:, :, i*64:(i+1)*64, :, :]
+                k = k.float().cuda(self.output_device)
+                print(self.output_device)
+
+                x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+                print(x_tensor_1.shape)
+                x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+                x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+                final_numpy = np.vstack((final_numpy, x_tensor_1))
+            else:
+                k = kkk[:, :, i*32:i*32+64, :, :]
+                k = k.float().cuda(self.output_device)
+                print(self.output_device)
+
+                x_tensor_1,output_1 = self.model(k, torch.tensor([1]).long().cuda(self.output_device), torch.tensor([1]).long().cuda(self.output_device))
+                print(x_tensor_1.shape)
+                x_tensor_1 = x_tensor_1.mean(1).view(64,-1)
+                x_tensor_1 = x_tensor_1.cpu().detach().numpy()
+                final_numpy = np.vstack((final_numpy, x_tensor_1[32:]))
+
+
+        return final_numpy
 
 
 def get_processor():

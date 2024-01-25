@@ -30,7 +30,7 @@ processor = Processor(arg)
 
 
 def push_pose_to_GCN_function(pose):
-    result = processor.train(pose)
+    result = processor.train2(pose)
     # print(type(request.files))
     # data = request.json
     # print('接收到的数据: ',data)

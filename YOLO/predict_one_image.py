@@ -19,10 +19,9 @@ def predict_one_image(fig_array):
         result_label = np.concatenate((conf[:, None], xywhn), axis=1)
         # xywhn = xywhn.append(conf)
         for i in range(len(conf)):
-            # output_line = output_line + result_label[i].tolist()
-            print(conf)
-            print(xywhn)
-            print(result_label[i].tolist())
+            # print(conf)
+            # print(xywhn)
+            # print(result_label[i].tolist())
             resultList.append(result_label[i].tolist())
     
     return resultList

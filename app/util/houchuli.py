@@ -2,11 +2,14 @@
 
 def houchuli(Final_YOLO_Predict_result_list):
     Ending = []
-    for subResult in Final_YOLO_Predict_result_list:
+    for i in range(len(Final_YOLO_Predict_result_list)):
+        subResult = Final_YOLO_Predict_result_list[i]
+    # for subResult in Final_YOLO_Predict_result_list:
         if subResult[0] < 0.3: #可信度太低
             continue
         if len(Ending) == 0: #加入第一个
             Ending.append(subResult[1:])
+            # if Ending[-1][1]%64
             continue
         if subResult[1]-3 >= Ending[-1][1] and subResult[3]+0.2 >= Ending[-1][3]: #
             Ending[-1][1] = subResult[2]
@@ -20,4 +23,4 @@ def houchuli(Final_YOLO_Predict_result_list):
             Ending[-1][3] = max(subResult[4],Ending[-1][3])
             continue
     
-    return [sub[0:2] for sub in Ending]
+    return [sub[0:2] for sub in Ending if sub[1]-sub[0]>8]

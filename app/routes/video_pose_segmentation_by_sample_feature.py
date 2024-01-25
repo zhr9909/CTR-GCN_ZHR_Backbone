@@ -23,15 +23,15 @@ def video_pose_segmentation_by_sample_feature_function():
     print(type(pose))
     pose = np.array(json.loads(pose))
     print('pose.shape: ',pose.shape)
-    # np.save('app/sampleVideo/深蹲视频骨骼序列.npy',pose)
+    # np.save('app/sampleVideo/深蹲/深蹲视频骨骼序列3.npy',pose)
     pose = change_point_33_to_25(pose)
     print('转换后的pose.shape',pose.shape)
     jsonPose = pose.tolist()
     pose = pose_standardization(pose)
-    np.save('app/sampleVideo/testVideo.npy',pose)
+    # np.save('app/sampleVideo/深蹲/深蹲标准骨骼序列3.npy',pose)
 
     videoFeature = push_pose_to_GCN_function(pose)
-    # np.save('app/sampleVideo/深蹲特征序列.npy',videoFeature)
+    # np.save('app/sampleVideo/引体向上/引体向上特征序列.npy',videoFeature)
 
     try:
         sampleFeature = np.load('app/sampleVideo/{}.npy'.format(actionType))
