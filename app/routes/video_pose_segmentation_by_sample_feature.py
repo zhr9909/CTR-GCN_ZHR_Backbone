@@ -1,10 +1,11 @@
-from flask import Flask, request, Response
+from flask import Flask, request, Response, jsonify
 import yaml
 import numpy as np
 import json
 from app.routes.push_pose_to_GCN import push_pose_to_GCN_function
 from app.util.change_point_33_to_25 import change_point_33_to_25
 from app.util.pose_standardization import pose_standardization
+from app.util.houchuli import houchuli
 import matplotlib.pyplot as plt
 from YOLO.predict_one_image import predict_one_image
 
@@ -19,12 +20,18 @@ def video_pose_segmentation_by_sample_feature_function():
         print('请求的JSON参数不全')
         return '请求的JSON参数不全'
     
+    print(type(pose))
     pose = np.array(json.loads(pose))
     print('pose.shape: ',pose.shape)
+    # np.save('app/sampleVideo/深蹲视频骨骼序列.npy',pose)
     pose = change_point_33_to_25(pose)
+    print('转换后的pose.shape',pose.shape)
+    jsonPose = pose.tolist()
     pose = pose_standardization(pose)
+    np.save('app/sampleVideo/testVideo.npy',pose)
 
     videoFeature = push_pose_to_GCN_function(pose)
+    # np.save('app/sampleVideo/深蹲特征序列.npy',videoFeature)
 
     try:
         sampleFeature = np.load('app/sampleVideo/{}.npy'.format(actionType))
@@ -47,7 +54,7 @@ def video_pose_segmentation_by_sample_feature_function():
         gululu = similirityMatrix[:,i*64:(i+1)*64]
 
         fig = plt.figure(figsize=(150, 10),dpi=12)
-        plt.imshow(gululu, cmap='coolwarm', interpolation='nearest',vmin=0,vmax=0.7)
+        plt.imshow(gululu, cmap='coolwarm', interpolation='nearest',vmin=0,vmax=0.6)
         plt.xticks([])
         plt.yticks([])
         # plt.savefig('app的目标检测尝试.png',bbox_inches='tight', pad_inches=0)
@@ -75,7 +82,7 @@ def video_pose_segmentation_by_sample_feature_function():
         if len(subResult) > 0:
             for k in range(len(subResult)):
                 # 处理得到真实的推理结果时间下标
-                subResult[k] = [subResult[k][0],subResult[k][1]*64+i*64,subResult[k][2],subResult[k][3]*64,subResult[k][0]] 
+                subResult[k] = [subResult[k][0],subResult[k][1]*64+i*64,subResult[k][2],subResult[k][3]*64,subResult[k][4]] 
 
         YOLO_Predict_result_list.append(subResult)
 
@@ -87,10 +94,21 @@ def video_pose_segmentation_by_sample_feature_function():
         for j in range(len(YOLO_Predict_result_list[i])):
             x1 = YOLO_Predict_result_list[i][j][1] - YOLO_Predict_result_list[i][j][3]/2
             x2 = YOLO_Predict_result_list[i][j][1] + YOLO_Predict_result_list[i][j][3]/2
-            Final_YOLO_Predict_result_list.append([x1,x2])
+            y1 = YOLO_Predict_result_list[i][j][2] - YOLO_Predict_result_list[i][j][4]/2
+            y2 = YOLO_Predict_result_list[i][j][2] + YOLO_Predict_result_list[i][j][4]/2
+            Final_YOLO_Predict_result_list.append([YOLO_Predict_result_list[i][j][0],int(x1),int(x2),y1,y2])
 
-    print('Final_YOLO_Predict_result_list',Final_YOLO_Predict_result_list)
+    Final_YOLO_Predict_result_list = sorted(Final_YOLO_Predict_result_list, key=lambda x: x[1])
+    # print('Final_YOLO_Predict_result_list',Final_YOLO_Predict_result_list)
+    Ending = houchuli(Final_YOLO_Predict_result_list)
+    for i in range(len(Ending)):
+        print('Ending({}): '.format(i),Ending[i])
 
-    # return '标准样例提取并保存成功'
-    return Final_YOLO_Predict_result_list
-    # return [[136.7638645172119, 159.135892868042], [218.963623046875, 237.43548583984375], [239.6745629310608, 251.40884923934937]]
+    jsonBody = {}
+    jsonBody['message'] = '标准样例提取并保存成功'
+    jsonBody['data'] = Ending
+    jsonBody['pose'] = jsonPose
+    
+    return jsonBody
+
+
