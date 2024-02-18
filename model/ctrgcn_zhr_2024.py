@@ -354,20 +354,14 @@ class Model(nn.Module):
         x = self.l9(x)
         x = self.l10(x)
 
-# 增加注意力模块start
-        attentionTensor = x.clone() #torch.Size([2, 256, 64, 25])
-        attentionTensor = attentionTensor.mean(2).mean(0).unsqueeze(0)
-        attentionTensor = self.attentionlayer(attentionTensor) #torch.Size([1, 256, 25])
-# 增加注意力模块end
         
 # 尝试多头注意力模块start
-        attentionTensor = x.clone() #torch.Size([2, 256, 64, 25])
+        attentionTensor = x #torch.Size([2, 256, 64, 25])
         attentionTensor = attentionTensor.mean(2).mean(0).unsqueeze(0)
         attentionTensor = attentionTensor.permute(0,2,1)
-        # attentionTensor = attentionTensor.repeat(8,  1,  1)
         output, attention_weights = self.mha(attentionTensor, attentionTensor, attentionTensor)
         print(output.shape)  #  输出：torch.Size([1,  25,  1])
-        # print(output)  
+        print(output)  
         output = output.unsqueeze(0).permute(0,1,3,2)
 
         x = x*output
@@ -493,7 +487,7 @@ class MultiHeadAttention(nn.Module):
 
         output = self.dense(output)
         output = self.fc(output)
-        output = F.softmax(output, dim=-1)
+        # output = F.softmax(output, dim=1)
 
         return output, attention_weights
 

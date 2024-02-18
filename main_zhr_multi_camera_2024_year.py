@@ -407,6 +407,18 @@ class Processor():
         return split_time
 
     def train(self, epoch, save_model=False):
+        layer_params = self.model.state_dict()
+        #  打印模型中所有层的参数
+        for name, params in self.model.state_dict().items():
+            print(f"Layer: {name}")
+
+
+        # 冻结除了多头注意力之外的其他层
+        for name, param in self.model.named_parameters():
+            if name.split('.')[0] != 'mha':
+                param.requires_grad = False
+
+
         self.model.train()
         self.Model_zhr_temp.train()
         self.print_log('Training epoch: {}'.format(epoch + 1))
@@ -430,6 +442,7 @@ class Processor():
         label_zhr = torch.from_numpy(label_zhr).to(torch.float32).to(self.output_device)
 
         for batch_idx, (data_1, label_1, index, data_2, label_2, index_2) in enumerate(process):
+            # print(self.model.state_dict()['mha.wq.weight'])
             self.global_step += 1
             with torch.no_grad():
                 data_1 = data_1.float().cuda(self.output_device)
