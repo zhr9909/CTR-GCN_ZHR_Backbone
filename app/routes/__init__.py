@@ -10,6 +10,7 @@ from app.routes.change import change_function
 from app.routes.push_pose_to_GCN import push_pose_to_GCN_function 
 from app.routes.push_sample_video_pose import push_sample_video_pose_to_GCN_and_save_function
 from app.routes.video_pose_segmentation_by_sample_feature import video_pose_segmentation_by_sample_feature_function
+from app.routes.getSampleVideoInformation import getSampleVideoInformation_function
 
 # 针对不同 URL 注册路由
 app.add_url_rule('/', view_func=lambda: render_template('index.html'))
@@ -21,3 +22,5 @@ app.add_url_rule('/change', view_func=change_function)
 app.add_url_rule('/video_pose_segmentation_by_sample_feature', view_func=video_pose_segmentation_by_sample_feature_function, methods=['POST']) 
 # push_sample_video_pose，接收客户端传来的标准视频样例对应的pose数据
 app.add_url_rule('/push_sample_video_pose_to_GCN_and_save', view_func=push_sample_video_pose_to_GCN_and_save_function, methods=['POST']) 
+# getSampleVideoInformation 获取样例信息
+app.add_url_rule('/getSampleVideoInformation', view_func=getSampleVideoInformation_function, methods=['get']) 
