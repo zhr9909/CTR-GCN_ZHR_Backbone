@@ -5,10 +5,11 @@ import numpy as np
 
 def predict_one_image(fig_array):
     # Load a pretrained YOLOv8n model
-    model = YOLO('runs/detect/train24/weights/best.pt')
+    # model = YOLO('../../../../../data/ssd1/zhanghaoran/zhr/数据集/runs/detect/train24/weights/best.pt')
+    model = YOLO('runs/detect/train9_关掉部分数据增强/weights/best.pt')
 
     # 填写预测图片的路径'，
-    results = model(fig_array, stream=True, save=True)  # results list
+    results = model(fig_array, stream=True, save=True, conf=0.65)  # results list
 
     # 如果后续需要目标的位置，置信度等信息，可以从results里面寻找
     output_line = []

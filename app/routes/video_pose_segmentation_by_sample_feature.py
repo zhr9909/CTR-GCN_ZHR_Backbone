@@ -5,7 +5,7 @@ import json
 from app.routes.push_pose_to_GCN import push_pose_to_GCN_function
 from app.util.change_point_33_to_25 import change_point_33_to_25
 from app.util.pose_standardization import pose_standardization
-from app.util.houchuli import houchuli
+from app.util.houchuli import houchuli,bodyCentor,changeSkeletonLength
 import matplotlib.pyplot as plt
 from YOLO.predict_one_image import predict_one_image
 
@@ -21,6 +21,9 @@ def video_pose_segmentation_by_sample_feature_function():
         return '请求的JSON参数不全'
     
     print(type(pose))
+    k = json.loads(pose)
+    with open('stu8_30.json', 'w') as file:
+        json.dump(k, file)
     pose = np.array(json.loads(pose))
     
     # 将不足64倍数的帧进行补齐
@@ -35,10 +38,18 @@ def video_pose_segmentation_by_sample_feature_function():
     print('转换后的pose.shape',pose.shape)
     jsonPose = pose.tolist()
     pose = pose_standardization(pose)
-    # np.save('app/sampleVideo/深蹲/stu8_69.npy',pose)
+    
+
+    # 身体居中
+    pose = bodyCentor(pose)
+
+    # 身体长度归一化
+    pose = changeSkeletonLength(pose)
+
+    np.save('app/sampleVideo/开合跳/stu8_30.npy',pose)
 
     videoFeature = push_pose_to_GCN_function(pose)
-    # np.save('app/sampleVideo/深蹲/stu3_65特征序列.npy',videoFeature[200:220,:])
+    np.save('app/sampleVideo/开合跳/stu8_30特征序列.npy',videoFeature)
 
     try:
         sampleFeature = np.load('app/sampleVideo/{}特征序列.npy'.format(actionType))
@@ -48,22 +59,22 @@ def video_pose_segmentation_by_sample_feature_function():
     # 接下来进行待检测视频和标准样例间的特征相似度矩阵构建
     normsSampleFeature = np.linalg.norm(sampleFeature, axis=1, keepdims=True)
     normalized_sampleFeature = sampleFeature / normsSampleFeature #标准样例的归一化特征
-    # normalized_sampleFeature =np.concatenate((normalized_sampleFeature[:,0:1280],normalized_sampleFeature[:,2048:2304],normalized_sampleFeature[:,3072:5376]), axis=1) 
+    # normalized_sampleFeature =np.concatenate((normalized_sampleFeature[:,0:256],normalized_sampleFeature[:,3072:5120]), axis=1) 
 
     normsVideoFeature = np.linalg.norm(videoFeature, axis=1, keepdims=True)
     normalized_videoFeature = videoFeature / normsVideoFeature #待检测视频的归一化特征
-    # normalized_videoFeature =np.concatenate((normalized_videoFeature[:,0:1280],normalized_videoFeature[:,2048:2304],normalized_videoFeature[:,3072:5376]), axis=1) 
+    # normalized_videoFeature =np.concatenate((normalized_videoFeature[:,0:256],normalized_videoFeature[:,3072:5120]), axis=1) 
 
     similirityMatrix = np.dot(normalized_sampleFeature, normalized_videoFeature.T) #!!!特征形似度矩阵!!!
 
     print('特征形似度矩阵的形状：',similirityMatrix.shape)
 
     YOLO_Predict_result_list = []
-    for i in range(similirityMatrix.shape[1]//64):
-        gululu = similirityMatrix[:,i*64:(i+1)*64]
+    for i in range(similirityMatrix.shape[1]//32 - 1):
+        gululu = similirityMatrix[:,i*32:i*32+64]
 
         fig = plt.figure(figsize=(150, 10),dpi=12)
-        plt.imshow(gululu, cmap='coolwarm', interpolation='nearest',vmin=0,vmax=0.55)
+        plt.imshow(gululu, cmap='coolwarm', interpolation='nearest',vmin=0,vmax=0.45)
         plt.xticks([])
         plt.yticks([])
         # plt.savefig('app的目标检测尝试.png',bbox_inches='tight', pad_inches=0)
@@ -91,7 +102,7 @@ def video_pose_segmentation_by_sample_feature_function():
         if len(subResult) > 0:
             for k in range(len(subResult)):
                 # 处理得到真实的推理结果时间下标
-                subResult[k] = [subResult[k][0],subResult[k][1]*64+i*64,subResult[k][2],subResult[k][3]*64,subResult[k][4]] 
+                subResult[k] = [subResult[k][0],subResult[k][1]*64+i*32,subResult[k][2],subResult[k][3]*64,subResult[k][4]] 
 
         YOLO_Predict_result_list.append(subResult)
 
@@ -108,14 +119,16 @@ def video_pose_segmentation_by_sample_feature_function():
             Final_YOLO_Predict_result_list.append([YOLO_Predict_result_list[i][j][0],int(x1),int(x2),y1,y2])
 
     Final_YOLO_Predict_result_list = sorted(Final_YOLO_Predict_result_list, key=lambda x: x[1])
-    print('Final_YOLO_Predict_result_list',Final_YOLO_Predict_result_list)
+    print('Final_YOLO_Predict_result_list')
+    for i in range(len(Final_YOLO_Predict_result_list)):
+        print(Final_YOLO_Predict_result_list[i])
     Ending = houchuli(Final_YOLO_Predict_result_list)
     for i in range(len(Ending)):
         print('Ending({}): '.format(i),Ending[i])
 
     jsonBody = {}
     jsonBody['message'] = '标准样例提取并保存成功'
-    Ending.append([0,448])
+    Ending.append([0,similirityMatrix.shape[1]])
     jsonBody['data'] = Ending
     jsonBody['pose'] = jsonPose
     
